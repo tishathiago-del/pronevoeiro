@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>NEVOEIRO | Premium Management</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <link href="https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --accent: #007AFF; /* Blue Apple */
+            --success: #34C759;
+            --danger: #FF3B30;
+            --warning: #FF9500;
+            --bg: #000000;
+            --card-bg: rgba(28, 28, 30, 0.7);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #FFFFFF;
+            --text-sec: #8E8E93;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'SF Pro Display', -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+        
+        body { background: var(--bg); color: var(--text-main); height: 100vh; overflow: hidden; }
+
+        /* Background Dinâmico */
+        .gradient-bg {
+            position: fixed; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            z-index: -1; animation: rotate 20s linear infinite;
+        }
+
+        /* Login Screen Premium */
+        #login-screen {
+            height: 100vh; display: flex; flex-direction: column; justify-content: center;
+            align-items: center; padding: 30px; z-index: 100; position: relative;
+        }
+        .login-card {
+            background: var(--card-bg); backdrop-filter: blur(20px);
+            padding: 40px 30px; border-radius: 30px; border: 1px solid var(--border);
+            width: 100%; max-width: 400px; text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        .logo-text { font-size: 2.5rem; font-weight: 700; letter-spacing: -1px; margin-bottom: 5px; }
+        .logo-sub { color: var(--accent); font-size: 0.9rem; font-weight: 600; text-transform: uppercase; letter-spacing: 3px; margin-bottom: 30px; }
+
+        input, select {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+            padding: 15px; border-radius: 12px; color: #fff; font-size: 1rem; margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        input:focus { border-color: var(--accent); outline: none; background: rgba(255,255,255,0.1); }
+
+        .btn-prime {
+            width: 100%; background: var(--accent); color: #fff; border: none;
+            padding: 16px; border-radius: 14px; font-weight: 600; font-size: 1rem;
+            cursor: pointer; transition: transform 0.2s;
+        }
+        .btn-prime:active { transform: scale(0.98); }
+
+        /* Main App Layout */
+        #main-content { display: none; height: 100vh; flex-direction: column; }
+
+        /* Header / Stats */
+        .app-header { padding: 20px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px); border-bottom: 1px solid var(--border); }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .stat-box { text-align: center; background: rgba(255,255,255,0.03); padding: 10px; border-radius: 15px; }
+        .stat-box i { font-size: 0.8rem; color: var(--text-sec); margin-bottom: 5px; display: block; }
+        .stat-box span { font-weight: 700; font-size: 1.1rem; }
+
+        /* Search Bar */
+        .search-wrapper { padding: 15px 20px; display: flex; gap: 10px; }
+        .search-bar { flex: 1; background: #1c1c1e; border-radius: 12px; display: flex; align-items: center; padding: 0 15px; }
+        .search-bar input { border: none; margin: 0; background: transparent; padding: 10px; font-size: 0.9rem; }
+
+        /* Workspace Area */
+        .workspace { flex: 1; position: relative; padding: 0 20px; }
+        .city-tabs { 
+            display: flex; gap: 10px; overflow-x: auto; padding-bottom: 15px; 
+            scrollbar-width: none; -ms-overflow-style: none;
+        }
+        .city-tabs::-webkit-scrollbar { display: none; }
+        .tab-item { 
+            padding: 8px 20px; border-radius: 20px; background: #1c1c1e; color: var(--text-sec);
+            white-space: nowrap; font-size: 0.85rem; font-weight: 600; border: 1px solid transparent;
+        }
+        .tab-item.active { background: var(--accent); color: #fff; }
+
+        textarea {
+            width: 100%; height: calc(100vh - 350px); background: #1c1c1e; border: 1px solid var(--border);
+            border-radius: 20px; padding: 20px; color: #fff; font-family: monospace; font-size: 15px;
+            line-height: 1.6; resize: none; display: none;
+        }
+        textarea.active { display: block; animation: fadeIn 0.3s; }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            background: rgba(28, 28, 30, 0.95); backdrop-filter: blur(20px);
+            border-top: 1px solid var(--border); padding: 15px 20px 30px 20px;
+            display: flex; justify-content: space-around; align-items: center;
+        }
+        .nav-btn { color: var(--text-sec); display: flex; flex-direction: column; align-items: center; font-size: 0.7rem; gap: 5px; cursor: pointer; }
+        .nav-btn.active { color: var(--accent); }
+        .nav-btn.scan { 
+            background: var(--accent); color: #fff; width: 60px; height: 60px; 
+            border-radius: 30px; margin-top: -45px; justify-content: center;
+            box-shadow: 0 10px 20px rgba(0,122,255,0.3); border: 4px solid var(--bg);
+        }
+
+        /* Cam Overlay */
+        #reader { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            z-index: 2000; display: none; background: #000;
+        }
+        .close-cam { 
+            position: absolute; top: 40px; right: 20px; z-index: 2001;
+            background: rgba(0,0,0,0.5); border-radius: 50%; width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
+        }
+
+        /* Toasts Customizados */
+        #toast-container { position: fixed; top: 50px; left: 50%; transform: translateX(-50%); z-index: 3000; width: 90%; max-width: 350px; }
+        .toast { 
+            background: rgba(255,255,255,0.9); color: #000; padding: 15px 25px; 
+            border-radius: 25px; margin-bottom: 10px; font-weight: 600; text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3); animation: slideDown 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideDown { from { transform: translateY(-100px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+    </style>
+</head>
+<body onload="checkLogin()">
+
+    <div class="gradient-bg"></div>
+    <div id="toast-container"></div>
+
+    <div id="reader">
+        <div class="close-cam" onclick="toggleCamera()"><i class="fa-solid fa-xmark"></i></div>
+    </div>
+
+    <div id="login-screen">
+        <div class="login-card">
+            <h1 class="logo-text">Nevoeiro</h1>
+            <p class="logo-sub">Operations Pro</p>
+            <select id="user-select">
+                <option value="" disabled selected>Selecionar Operador</option>
+                <option value="THIAGO">THIAGO</option>
+                <option value="SAMUEL">SAMUEL</option>
+                <option value="BRUNO">BRUNO</option>
+                <option value="ANDREY">ANDREY</option>
+                <option value="ALEXANDRE">ALEXANDRE</option>
+                <option value="CRISOPOLIS">CRISOPOLIS</option>
+                <option value="RIO REAL">RIO REAL</option>
+            </select>
+            <input type="password" id="pass-input" placeholder="Chave de acesso">
+            <button class="btn-prime" onclick="login()">Acessar Painel</button>
+        </div>
+    </div>
+
+    <div id="main-content">
+        <header class="app-header">
+            <div class="stats-grid">
+                <div class="stat-box"><i class="fa-solid fa-box-archive"></i><span id="st-v">0/0</span></div>
+                <div class="stat-box"><i class="fa-solid fa-clock"></i><span id="st-p">0</span></div>
+                <div class="stat-box"><i class="fa-solid fa-triangle-exclamation"></i><span id="st-e" style="color:var(--danger)">0</span></div>
+                <div class="stat-box"><i class="fa-solid fa-bolt"></i><span id="st-r">0</span></div>
+            </div>
+        </header>
+
+        <div class="search-wrapper">
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass" style="color:var(--text-sec)"></i>
+                <input type="text" id="g-search" placeholder="Procurar pacote..." onkeyup="if(event.key==='Enter') searchCode()">
+            </div>
+            <button class="btn-prime" style="width: 50px; padding: 0;" onclick="searchCode()"><i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+
+        <div class="workspace">
+            <div class="city-tabs" id="tabs-list"></div>
+            <div id="textareas-list"></div>
+        </div>
+
+        <nav class="bottom-nav">
+            <div class="nav-btn" onclick="masterEmail()"><i class="fa-solid fa-envelope fa-xl"></i><span>Relatório</span></div>
+            <div class="nav-btn scan" onclick="toggleCamera()"><i class="fa-solid fa-qrcode fa-2xl"></i></div>
+            <div class="nav-btn" onclick="finishTrip()"><i class="fa-solid fa-circle-check fa-xl"></i><span>Finalizar</span></div>
+            <div class="nav-btn" onclick="logout()"><i class="fa-solid fa-right-from-bracket fa-xl"></i><span>Sair</span></div>
+        </nav>
+    </div>
+
+<script>
+    // Inicialização EmailJS & Firebase
+    (function() { emailjs.init("-XFJQuFDR2aujgOhl"); })();
+    const config = { apiKey: "AIzaSyDXtVIZkiGcTU_uvbsFEkZDDjTKoo6aWak", databaseURL: "https://base-de-dados-nevoeiro-default-rtdb.firebaseio.com", projectId: "base-de-dados-nevoeiro" };
+    firebase.initializeApp(config);
+    const db = firebase.database();
+
+    // Estado Global
+    let me = "", activeCity = "", html5QrCode = null, oldVal = "";
+    const cityMap = { "CONDE": ["48300000"], "CRISOPOLIS": ["48480000", "48483000"], "ACAJUTIBA": ["48360000"], "APORA-ITAMIRA": ["48350000", "48355000"], "JANDAIRA": ["48310000"], "RIO REAL": ["48330000"] };
+    const cities = [...Object.keys(cityMap), 'ESPELHO'];
+    let globalMeta = {};
+
+    function notify(msg) {
+        const t = document.createElement('div'); t.className = 'toast'; t.innerText = msg;
+        document.getElementById('toast-container').appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+
+    function checkLogin() {
+        const saved = localStorage.getItem('nev_user');
+        if(saved) { me = saved; launchApp(); }
+    }
+
+    function login() {
+        const u = document.getElementById('user-select').value;
+        const p = document.getElementById('pass-input').value;
+        const keys = { "THIAGO":"270219", "SAMUEL":"2804", "BRUNO":"1010", "ALEXANDRE":"0000", "CRISOPOLIS":"2525", "RIO REAL":"3510", "ANDREY":"1212" };
+        if(keys[u] === p) { me = u; localStorage.setItem('nev_user', u); launchApp(); }
+        else notify("Acesso Negado");
+    }
+
+    function logout() { localStorage.removeItem('nev_user'); location.reload(); }
+
+    function launchApp() {
+        document.getElementById('login-screen').style.display = 'none';
+        document.getElementById('main-content').style.display = 'flex';
+        activeCity = (me === 'CRISOPOLIS' || me === 'RIO REAL') ? me : 'APORA-ITAMIRA';
+        initWorkspace();
+    }
+
+    function initWorkspace() {
+        const tList = document.getElementById('tabs-list');
+        const aList = document.getElementById('textareas-list');
+        tList.innerHTML = ""; aList.innerHTML = "";
+
+        cities.forEach(c => {
+            if((me === 'CRISOPOLIS' || me === 'RIO REAL') && (c !== me && c !== 'ESPELHO')) return;
+            
+            const tab = document.createElement('div');
+            tab.className = `tab-item ${c === activeCity ? 'active' : ''}`;
+            tab.id = `tab-${c}`; tab.innerText = c;
+            tab.onclick = () => switchTab(c);
+            tList.appendChild(tab);
+
+            const area = document.createElement('textarea');
+            area.id = `txt-${c}`; area.className = c === activeCity ? 'active' : '';
+            area.onfocus = (e) => oldVal = e.target.value;
+            area.onchange = (e) => handleManualChange(e, c);
+            aList.appendChild(area);
+        });
+        syncData();
+    }
+
+    function switchTab(c) {
+        if(c === 'ESPELHO' && prompt("Acesso Restrito:") !== "0721") return;
+        activeCity = c;
+        document.querySelectorAll('.tab-item, textarea').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${c}`).classList.add('active');
+        document.getElementById(`txt-${c}`).classList.add('active');
+        processStats();
+    }
+
+    async function toggleCamera() {
+        const reader = document.getElementById('reader');
+        if (html5QrCode && html5QrCode.getState() === 2) { 
+            await html5QrCode.stop(); reader.style.display = 'none'; return; 
+        }
+        reader.style.display = 'block';
+        html5QrCode = new Html5Qrcode("reader");
+        html5QrCode.start({ facingMode: "environment" }, { fps: 20, qrbox: 250 }, (text) => {
+            let code = text.toUpperCase().trim();
+            if(code.startsWith("BR")) {
+                let el = document.getElementById(`txt-${activeCity}`);
+                if(!el.value.includes(code)) {
+                    if (navigator.vibrate) navigator.vibrate(200);
+                    el.value += (el.value ? "\n" : "") + code;
+                    db.ref('monitor/'+activeCity).set({texto: el.value, user: me});
+                    validateBip(code);
+                }
+            }
+        });
+    }
+
+    function validateBip(code) {
+        if(globalMeta[activeCity]?.has(code)) playBeep(800);
+        else {
+            playBeep(200);
+            let target = "";
+            for(let c in globalMeta) if(c!=='ESPELHO' && globalMeta[c].has(code)) target = c;
+            speak(target ? `Erro, pacote de ${target}` : "Fora de rota");
+        }
+    }
+
+    function playBeep(freq) {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.frequency.value = freq; gain.gain.value = 0.1;
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
+    }
+
+    function speak(t) {
+        window.speechSynthesis.cancel();
+        const m = new SpeechSynthesisUtterance(t);
+        m.lang = 'pt-BR'; m.rate = 1.4; window.speechSynthesis.speak(m);
+    }
+
+    function handleManualChange(e, city) {
+        const newVal = e.target.value;
+        const oldBips = oldVal.match(/BR[A-Z0-9]+/g) || [];
+        const newBips = newVal.match(/BR[A-Z0-9]+/g) || [];
+        let deletedCorrects = oldBips.filter(b => globalMeta[city]?.has(b) && !newBips.includes(b));
+
+        if(deletedCorrects.length > 0) {
+            if(me === "THIAGO" || me === "SAMUEL") {
+                let reason = prompt(`Exclusão de pacote correto detectada (${deletedCorrects[0]}...). Justifique:`);
+                if(reason && reason.length > 5) {
+                    sendEmail(`ALERTA: Exclusão Manual por ${me}\nCidade: ${city}\nPacotes: ${deletedCorrects.join(', ')}\nMotivo: ${reason}`);
+                    db.ref('monitor/'+city).set({texto: newVal, user: me});
+                } else { notify("Ação negada. Justificativa curta."); e.target.value = oldVal; }
+            } else { notify("Bloqueio: Apenas gerentes."); e.target.value = oldVal; }
+        } else { db.ref('monitor/'+city).set({texto: newVal, user: me}); }
+    }
+
+    function sendEmail(content) {
+        emailjs.send("service_mzyqj81", "template_d52csff", { usuario: me, conteudo: content })
+        .then(() => notify("✅ RELATÓRIO ENVIADO"));
+    }
+
+    function masterEmail() {
+        let report = `NEVOEIRO PRO - STATUS ATUAL (${me})\n\n`;
+        cities.forEach(c => {
+            if(c === 'ESPELHO') return;
+            const bips = document.getElementById(`txt-${c}`).value.match(/BR[A-Z0-9]+/g) || [];
+            report += `=== ${c} (${bips.length}) ===\n${bips.join('\n')}\n\n`;
+        });
+        sendEmail(report);
+    }
+
+    function finishTrip() {
+        if(!confirm("Deseja encerrar viagem?")) return;
+        if(prompt("Chave Master:") === "0721") {
+            masterEmail();
+            cities.forEach(c => db.ref('monitor/'+c).set({texto: "", user: me}));
+            notify("VIAGEM ENCERRADA E LIMPA");
+        }
+    }
+
+    function processStats() {
+        cities.forEach(c => globalMeta[c] = new Set());
+        const esp = document.getElementById('txt-ESPELHO')?.value || "";
+        esp.split('\n').forEach(l => {
+            let br = l.match(/BR[A-Z0-9]+/i);
+            let num = l.replace(/\D/g, "");
+            if(br) {
+                let code = br[0].toUpperCase();
+                for(let cid in cityMap) cityMap[cid].forEach(cep => { if(num.includes(cep)) globalMeta[cid].add(code); });
+            }
+        });
+
+        if(activeCity !== 'ESPELHO') {
+            const currentBips = document.getElementById(`txt-${activeCity}`).value.match(/BR[A-Z0-9]+/g) || [];
+            let corr = currentBips.filter(b => globalMeta[activeCity]?.has(b)).length;
+            document.getElementById('st-v').innerText = `${corr}/${globalMeta[activeCity]?.size || 0}`;
+            document.getElementById('st-p').innerText = (globalMeta[activeCity]?.size || 0) - corr;
+            document.getElementById('st-e').innerText = currentBips.length - corr;
+        }
+    }
+
+    function syncData() {
+        db.ref('monitor').on('value', snap => {
+            const data = snap.val();
+            cities.forEach(c => {
+                const el = document.getElementById(`txt-${c}`);
+                if(el && data?.[c] && document.activeElement !== el) el.value = data[c].texto;
+            });
+            processStats();
+        });
+    }
+
+    function searchCode() {
+        const q = document.getElementById('g-search').value.toUpperCase().trim();
+        if(!q) return;
+        cities.forEach(c => {
+            if(document.getElementById(`txt-${c}`).value.includes(q)) {
+                notify(`Pacote encontrado em ${c}`);
+                switchTab(c);
+            }
+        });
+    }
+</script>
+</body>
+</html>
